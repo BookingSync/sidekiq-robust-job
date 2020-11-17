@@ -26,4 +26,17 @@ Gem::Specification.new do |spec|
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
+
+  spec.add_dependency "sidekiq", ">= 5"
+  spec.add_dependency "sidekiq-cron", "~> 1"
+  spec.add_dependency "activesupport", "~> 5"
+
+  spec.add_development_dependency "rake", "~> 13.0"
+  spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency "rspec-sidekiq"
+  spec.add_development_dependency "timecop"
+  spec.add_development_dependency "shoulda-matchers"
+  spec.add_development_dependency "activerecord", "~> 5"
+  spec.add_development_dependency "pg"
+  spec.add_development_dependency "factory_bot_rails"
 end
