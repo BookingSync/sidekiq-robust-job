@@ -4,5 +4,6 @@ cache: bundler
 rvm:
   - 2.7.1
 services:
-  - postgresql  
+  - postgresql
+  - redis-server
 before_install: gem install bundler -v 2.1.4
