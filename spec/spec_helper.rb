@@ -1,5 +1,5 @@
 require "bundler/setup"
-require "sidekiq/robust/job"
+require "sidekiq-robust-job"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
