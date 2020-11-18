@@ -12,6 +12,20 @@ RSpec.describe SidekiqRobustJob::EnqueueConflictResolutionStrategy::DropSelf do
     let(:digest) { "123abc" }
     let!(:now) { Time.now.round }
 
+    around do |example|
+      original_sidekiq_job_model = SidekiqRobustJob.configuration.sidekiq_job_model
+
+      SidekiqRobustJob.configure do |config|
+        config.sidekiq_job_model = SidekiqJob
+      end
+
+      example.run
+
+      SidekiqRobustJob.configure do |config|
+        config.sidekiq_job_model = original_sidekiq_job_model
+      end
+    end
+
     context "when no jobs with the same digest exist that would not be dropped or completed" do
       let!(:processed_job) { create(:sidekiq_job, digest: digest, dropped_at: Time.now) }
       let!(:dropped_job) { create(:sidekiq_job, digest: digest, completed_at: Time.now) }

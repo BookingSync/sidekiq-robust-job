@@ -23,7 +23,7 @@ class SidekiqRobustJob
     end
 
     def sidekiq_job_model
-      @sidekiq_job_model || SidekiqJob
+      @sidekiq_job_model
     end
 
     def missed_job_policy=(val)

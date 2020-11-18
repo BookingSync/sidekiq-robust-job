@@ -39,15 +39,18 @@ RSpec.describe SidekiqRobustJob::PerformMissedJobsJob, :freeze_time do
 
     around do |example|
       original_policy = SidekiqRobustJob.configuration.missed_job_policy
+      original_sidekiq_job_model = SidekiqRobustJob.configuration.sidekiq_job_model
 
       SidekiqRobustJob.configure do |config|
         config.missed_job_policy = missed_job_policy
+        config.sidekiq_job_model = SidekiqJob
       end
 
       example.run
 
       SidekiqRobustJob.configure do |config|
         config.missed_job_policy = original_policy
+        config.sidekiq_job_model = original_sidekiq_job_model
       end
     end
 
