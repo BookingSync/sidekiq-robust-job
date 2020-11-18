@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     sidekiq-robust-job (0.1.0)
-      activesupport (~> 5)
+      activesupport (>= 5)
       sidekiq (>= 5)
       sidekiq-cron (~> 1)
 
