@@ -121,7 +121,7 @@ RSpec.describe SidekiqRobustJob::Configuration do
     let(:configuration) { described_class.new }
 
     context "when 'sidekiq_job_model' is not set" do
-      it { is_expected.to eq SidekiqJob }
+      it { is_expected.to eq nil }
     end
 
     context "when 'sidekiq_job_model' is set" do

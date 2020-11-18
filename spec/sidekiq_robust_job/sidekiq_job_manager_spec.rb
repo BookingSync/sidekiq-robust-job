@@ -40,10 +40,12 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
   around do |example|
     original_clock = SidekiqRobustJob.configuration.clock
     original_memory_monitor = SidekiqRobustJob.configuration.memory_monitor
+    original_sidekiq_job_model = SidekiqRobustJob.configuration.sidekiq_job_model
 
     SidekiqRobustJob.configure do |config|
       config.clock = Time.zone
       config.memory_monitor = memory_monitor
+      config.sidekiq_job_model = SidekiqJob
     end
 
     example.run
@@ -51,6 +53,7 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
     SidekiqRobustJob.configure do |config|
       config.clock = original_clock
       config.memory_monitor = original_memory_monitor
+      config.sidekiq_job_model = original_sidekiq_job_model
     end
   end
 

@@ -85,8 +85,16 @@ RSpec.describe SidekiqRobustJob::UniquenessStrategy::UntilExecuting do
     around do |example|
       SidekiqJobSentinelForUntilExecutingTest.reset
 
+      original_sidekiq_job_model = SidekiqRobustJob.configuration.sidekiq_job_model
+      SidekiqRobustJob.configure do |config|
+        config.sidekiq_job_model = SidekiqJob
+      end
+
       example.run
 
+      SidekiqRobustJob.configure do |config|
+        config.sidekiq_job_model = original_sidekiq_job_model
+      end
       SidekiqJobSentinelForUntilExecutingTest.reset
     end
 
