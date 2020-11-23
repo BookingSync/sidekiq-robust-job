@@ -77,6 +77,7 @@ RSpec.configure do |config|
     t.datetime "execute_at"
     t.string "sidekiq_jid"
 
+    t.index ["completed_at", "failed_at", "dropped_at"], name: "index_sidekiq_jobs_on_completed_at_and_failed_at_and_dropped_at"
     t.index ["completed_at"], name: "index_sidekiq_jobs_on_completed_at", using: :brin
     t.index ["created_at"], name: "index_sidekiq_jobs_on_created_at", using: :brin
     t.index ["digest"], name: "index_sidekiq_jobs_on_digest"

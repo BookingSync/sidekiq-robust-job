@@ -1,4 +1,4 @@
-RSpec.describe SidekiqJob, type: :model do
+RSpec.describe SidekiqJob, :freeze_time, type: :model do
   describe "validations" do
     it { is_expected.to validate_presence_of(:job_class) }
     it { is_expected.to validate_presence_of(:enqueued_at) }
