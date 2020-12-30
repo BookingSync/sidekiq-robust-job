@@ -270,6 +270,9 @@ expect {
 }.to enqueue_sidekiq_robust_job(MyJob).with(user.id).at(5.seconds.from_now)
 ```
 
+
+There is also a negated matcher: `not_enqueue_sidekiq_robust_job`.
+
 ### How to migrate already enqueued jobs when introducing the gem?
 
 This might be a bit tricky. You might consider using new job classes temporarily so that the already existing jobs are performed and the new ones are getting enqueued and then use again the original class with `SidekiqRobustJob::SidekiqJobExtensions` included and `call` method defined.
