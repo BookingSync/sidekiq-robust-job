@@ -161,7 +161,7 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           include SidekiqRobustJob::SidekiqJobExtensions
 
           sidekiq_options queue: "critical", uniqueness_strategy: "until_executed",
-            enqueue_conflict_resolution_strategy: "drop_self"
+            enqueue_conflict_resolution_strategy: "drop_self", persist_self_dropped_jobs: false
 
           def self.to_s
             "TestJob"
@@ -210,6 +210,56 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
         expect {
           perform_async
         }.not_to change { job_class.jobs.count }
+      end
+
+      context "when :persist_self_dropped_jobs is set to true" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: true
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        it "persists the job, even after being dropped" do
+          expect {
+            perform_async
+          }.to change { SidekiqJob.count }.by(1)
+        end
+      end
+
+      context "when :persist_self_dropped_jobs is set to false" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: false
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        it "does not persist the job" do
+          expect {
+            perform_async
+          }.not_to change { SidekiqJob.count }
+        end
+      end
+
+      context "when :persist_self_dropped_jobs is not set" do
+        it "persists the job, even after being dropped" do
+          expect {
+            perform_async
+          }.to change { SidekiqJob.count }.by(1)
+        end
       end
     end
   end
@@ -320,7 +370,7 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           include SidekiqRobustJob::SidekiqJobExtensions
 
           sidekiq_options queue: "critical", uniqueness_strategy: "until_executed",
-            enqueue_conflict_resolution_strategy: "drop_self"
+            enqueue_conflict_resolution_strategy: "drop_self", persist_self_dropped_jobs: false
 
           def self.to_s
             "TestJob"
@@ -369,6 +419,56 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
         expect {
           perform_in
         }.not_to change { job_class.jobs.count }
+      end
+
+      context "when :persist_self_dropped_jobs is set to true" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: true
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        it "persists the job, even after being dropped" do
+          expect {
+            perform_in
+          }.to change { SidekiqJob.count }.by(1)
+        end
+      end
+
+      context "when :persist_self_dropped_jobs is set to false" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: false
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        it "does not persist the job" do
+          expect {
+            perform_in
+          }.not_to change { SidekiqJob.count }
+        end
+      end
+
+      context "when :persist_self_dropped_jobs is not set" do
+        it "persists the job, even after being dropped" do
+          expect {
+            perform_in
+          }.to change { SidekiqJob.count }.by(1)
+        end
       end
     end
   end
@@ -479,7 +579,7 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           include SidekiqRobustJob::SidekiqJobExtensions
 
           sidekiq_options queue: "critical", uniqueness_strategy: "until_executed",
-            enqueue_conflict_resolution_strategy: "drop_self"
+            enqueue_conflict_resolution_strategy: "drop_self", persist_self_dropped_jobs: false
 
           def self.to_s
             "TestJob"
@@ -528,6 +628,56 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
         expect {
           perform_at
         }.not_to change { job_class.jobs.count }
+      end
+
+      context "when :persist_self_dropped_jobs is set to true" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: true
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        it "persists the job, even after being dropped" do
+          expect {
+            perform_at
+          }.to change { SidekiqJob.count }.by(1)
+        end
+      end
+
+      context "when :persist_self_dropped_jobs is set to false" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: false
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        it "does not persist the job" do
+          expect {
+            perform_at
+          }.not_to change { SidekiqJob.count }
+        end
+      end
+
+      context "when :persist_self_dropped_jobs is not set" do
+        it "persists the job, even after being dropped" do
+          expect {
+            perform_at
+          }.to change { SidekiqJob.count }.by(1)
+        end
       end
     end
   end
@@ -714,7 +864,7 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
             include SidekiqRobustJob::SidekiqJobExtensions
 
             sidekiq_options queue: "critical", uniqueness_strategy: "until_executed",
-                            enqueue_conflict_resolution_strategy: "drop_self"
+              enqueue_conflict_resolution_strategy: "drop_self", persist_self_dropped_jobs: false
 
             def self.to_s
               "TestJob"
@@ -770,6 +920,56 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           expect {
             perform_async
           }.not_to change { job_class.jobs.count }
+        end
+
+        context "when :persist_self_dropped_jobs is set to true" do
+          let(:job_class) do
+            Class.new do
+              include Sidekiq::Worker
+              include SidekiqRobustJob::SidekiqJobExtensions
+
+              sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: true
+
+              def self.to_s
+                "TestJob"
+              end
+            end
+          end
+
+          it "persists the job, even after being dropped" do
+            expect {
+              perform_async
+            }.to change { SidekiqJob.count }.by(1)
+          end
+        end
+
+        context "when :persist_self_dropped_jobs is set to false" do
+          let(:job_class) do
+            Class.new do
+              include Sidekiq::Worker
+              include SidekiqRobustJob::SidekiqJobExtensions
+
+              sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: false
+
+              def self.to_s
+                "TestJob"
+              end
+            end
+          end
+
+          it "does not persist the job" do
+            expect {
+              perform_async
+            }.not_to change { SidekiqJob.count }
+          end
+        end
+
+        context "when :persist_self_dropped_jobs is not set" do
+          it "persists the job, even after being dropped" do
+            expect {
+              perform_async
+            }.to change { SidekiqJob.count }.by(1)
+          end
         end
       end
     end
@@ -882,7 +1082,7 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
             include SidekiqRobustJob::SidekiqJobExtensions
 
             sidekiq_options queue: "critical", uniqueness_strategy: "until_executed",
-                            enqueue_conflict_resolution_strategy: "drop_self"
+              enqueue_conflict_resolution_strategy: "drop_self", persist_self_dropped_jobs: false
 
             def self.to_s
               "TestJob"
@@ -938,6 +1138,56 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           expect {
             perform_in
           }.not_to change { job_class.jobs.count }
+        end
+
+        context "when :persist_self_dropped_jobs is set to true" do
+          let(:job_class) do
+            Class.new do
+              include Sidekiq::Worker
+              include SidekiqRobustJob::SidekiqJobExtensions
+
+              sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: true
+
+              def self.to_s
+                "TestJob"
+              end
+            end
+          end
+
+          it "persists the job, even after being dropped" do
+            expect {
+              perform_in
+            }.to change { SidekiqJob.count }.by(1)
+          end
+        end
+
+        context "when :persist_self_dropped_jobs is set to false" do
+          let(:job_class) do
+            Class.new do
+              include Sidekiq::Worker
+              include SidekiqRobustJob::SidekiqJobExtensions
+
+              sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: false
+
+              def self.to_s
+                "TestJob"
+              end
+            end
+          end
+
+          it "does not persist the job" do
+            expect {
+              perform_in
+            }.not_to change { SidekiqJob.count }
+          end
+        end
+
+        context "when :persist_self_dropped_jobs is not set" do
+          it "persists the job, even after being dropped" do
+            expect {
+              perform_in
+            }.to change { SidekiqJob.count }.by(1)
+          end
         end
       end
     end
@@ -1050,7 +1300,7 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
             include SidekiqRobustJob::SidekiqJobExtensions
 
             sidekiq_options queue: "critical", uniqueness_strategy: "until_executed",
-                            enqueue_conflict_resolution_strategy: "drop_self"
+              enqueue_conflict_resolution_strategy: "drop_self", persist_self_dropped_jobs: false
 
             def self.to_s
               "TestJob"
@@ -1106,6 +1356,56 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           expect {
             perform_at
           }.not_to change { job_class.jobs.count }
+        end
+
+        context "when :persist_self_dropped_jobs is set to true" do
+          let(:job_class) do
+            Class.new do
+              include Sidekiq::Worker
+              include SidekiqRobustJob::SidekiqJobExtensions
+
+              sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: true
+
+              def self.to_s
+                "TestJob"
+              end
+            end
+          end
+
+          it "persists the job, even after being dropped" do
+            expect {
+              perform_at
+            }.to change { SidekiqJob.count }.by(1)
+          end
+        end
+
+        context "when :persist_self_dropped_jobs is set to false" do
+          let(:job_class) do
+            Class.new do
+              include Sidekiq::Worker
+              include SidekiqRobustJob::SidekiqJobExtensions
+
+              sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: false
+
+              def self.to_s
+                "TestJob"
+              end
+            end
+          end
+
+          it "does not persist the job" do
+            expect {
+              perform_at
+            }.not_to change { SidekiqJob.count }
+          end
+        end
+
+        context "when :persist_self_dropped_jobs is not set" do
+          it "persists the job, even after being dropped" do
+            expect {
+              perform_at
+            }.to change { SidekiqJob.count }.by(1)
+          end
         end
       end
     end

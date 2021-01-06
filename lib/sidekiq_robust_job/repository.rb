@@ -17,11 +17,15 @@ class SidekiqRobustJob
     end
 
     def save(record)
-      record.save!
+      record.save! if record.changed?
     end
 
     def create(attributes)
       jobs_database.create!(attributes)
+    end
+
+    def build(attributes)
+      jobs_database.new(attributes)
     end
 
     def missed_jobs(missed_job_policy:)
