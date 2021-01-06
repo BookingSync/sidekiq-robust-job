@@ -49,12 +49,26 @@ RSpec.describe SidekiqRobustJob::Repository do
 
     let(:repository) { described_class.new(jobs_database: SidekiqJob, clock: Time) }
 
-    let!(:job) { build(:sidekiq_job) }
+    context "when something has changed" do
+      let!(:job) { build(:sidekiq_job) }
 
-    it "persist a given SidekiqJob" do
-      expect {
+      it "persist a given SidekiqJob" do
+        expect(job).to receive(:save!).and_call_original
+
+        expect {
+          save
+        }.to change { job.persisted? }.from(false).to(true)
+      end
+    end
+
+    context "when nothing has changed has changed" do
+      let!(:job) { create(:sidekiq_job, updated_at: 1.week.ago) }
+
+      it "does no persist a given SidekiqJob" do
+        expect(job).not_to receive(:save!)
+
         save
-      }.to change { job.persisted? }.from(false).to(true)
+      end
     end
   end
 
@@ -80,6 +94,36 @@ RSpec.describe SidekiqRobustJob::Repository do
       }.to change { SidekiqJob.count }.by(1)
 
       expect(job).to be_persisted
+      expect(job.job_class).to eq "Class"
+      expect(job.digest).to eq "digest"
+      expect(job.uniqueness_strategy).to eq "no_uniqueness"
+      expect(job.enqueue_conflict_resolution_strategy).to eq "do_nothing"
+      expect(job.queue).to eq "default"
+    end
+  end
+
+  describe "#build" do
+    subject(:build_job) { repository.build(attributes) }
+
+    let(:repository) { described_class.new(jobs_database: SidekiqJob, clock: Time) }
+    let(:attributes) do
+      {
+        job_class: "Class",
+        enqueued_at: Time.now,
+        digest: "digest",
+        uniqueness_strategy: "no_uniqueness",
+        enqueue_conflict_resolution_strategy: "do_nothing",
+        queue: "default"
+      }
+    end
+
+    it "builds SidekiqJob, but does not persist it" do
+      job = nil
+      expect {
+        job = build_job
+      }.not_to change { SidekiqJob.count }
+
+      expect(job).not_to be_persisted
       expect(job.job_class).to eq "Class"
       expect(job.digest).to eq "digest"
       expect(job.uniqueness_strategy).to eq "no_uniqueness"

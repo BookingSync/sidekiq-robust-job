@@ -145,6 +145,25 @@ Although keep in mind that using this feature comes with some performance penalt
 
 If you have a lot of conflicts within a short period, consider using `perform_in` instead of `perform_async` and add some random number of seconds (ideally, below 1 minute) to make it easier to apply enqueue conflict resolution strategy.
 
+If you enqueue a lot of the same jobs (same class, same arguments) in a short period of time and `drop_self` strategy, you should consider setting `persist_self_dropped_jobs` config option to false. By default, it's true which means that even the jobs that are dropped are persisted, which might be useful for some profiling or even figuring out in the first place that you have an issue like this. However, under such circumstances this is likely to result in heavier queries fetching a lot of rows from the database, causing a high database load.    
+
+Here is an example how to use it:
+
+
+``` rb
+class MyJob
+  include Sidekiq::Worker
+  include SidekiqRobustJob::SidekiqJobExtensions
+
+  sidekiq_options queue: "critical", enqueue_conflict_resolution_strategy: "drop_self", 
+    persist_self_dropped_jobs: false
+
+  def call(user_id)
+    User.find(user_id).do_something
+  end
+end
+```
+
 #### Execution Uniqueness (Mutex)
 
 This feature is about handling a "conflict" (determined by a digest generated based on the job class and its arguments) when there is already the "same job" getting executed (i.e. same job class and arguments) at the same time.
@@ -278,6 +297,10 @@ There is also a negated matcher: `not_enqueue_sidekiq_robust_job`.
 This might be a bit tricky. You might consider using new job classes temporarily so that the already existing jobs are performed and the new ones are getting enqueued and then use again the original class with `SidekiqRobustJob::SidekiqJobExtensions` included and `call` method defined.
 
 You can also stop workers, iterate over all existing jobs, re-schedule them (after including the module) and delete them - it's safe because the actual job will still be there, but it will be enqueued this time with job's ID and  `call` method will be used. And you need to delete the original ones as they might have either a different `perform` method signature, or when having the same one, the argument will have a different meaning that job's ID, which can cause an unexpected behavior. This might require a downtime if you are not able to distinguish just based on the arguments of the job between the previous way of executing jobs and the new one. If you are able to, the downtime might not be required, but a lot of jobs can fail due to `perform` method's signature change. However, you can also re-enqueue these jobs and delete them from `RetrySet`.
+
+### Maintenance
+
+It is recommended to periodically remove old jobs for the maximum performance. [Tartarus](https://github.com/BookingSync/tartarus-rb) is a recommended approach for that.
 
 ## Development
 

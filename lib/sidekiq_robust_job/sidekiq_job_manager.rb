@@ -53,7 +53,7 @@ class SidekiqRobustJob
     private
 
     def create_job(job_class, *arguments)
-      jobs_repository.create(
+      jobs_repository.build(
         job_class: job_class,
         arguments: Array.wrap(arguments),
         enqueued_at: clock.now,
@@ -64,9 +64,10 @@ class SidekiqRobustJob
         enqueue_conflict_resolution_strategy: job_class.get_sidekiq_options.fetch("enqueue_conflict_resolution_strategy",
           SidekiqRobustJob::EnqueueConflictResolutionStrategy.do_nothing)
       ).tap do |job|
+        jobs_repository.save(job) if persist_job_immediately?(job_class)
         jobs_repository.transaction do
           resolve_potential_conflict_for_enqueueing(job)
-          jobs_repository.save(job)
+          jobs_repository.save(job) if persist_after_resolving_conflict_for_enqueueing(job, job_class)
         end
       end
     end
@@ -75,6 +76,20 @@ class SidekiqRobustJob
       SidekiqRobustJob::DependenciesContainer["enqueue_conflict_resolution_resolver"]
         .resolve(job.enqueue_conflict_resolution_strategy)
         .execute(job)
+    end
+
+    def persist_job_immediately?(job_class)
+      persist_self_dropped_jobs?(job_class)
+    end
+
+    def persist_after_resolving_conflict_for_enqueueing(job, job_class)
+      return true if persist_self_dropped_jobs?(job_class)
+
+      !job.dropped?
+    end
+
+    def persist_self_dropped_jobs?(job_class)
+      job_class.get_sidekiq_options.fetch("persist_self_dropped_jobs", true)
     end
   end
 end

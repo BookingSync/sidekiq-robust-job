@@ -33,7 +33,7 @@ RSpec.describe SidekiqRobustJob::EnqueueConflictResolutionStrategy::DropSelf do
       it "does not drop self" do
         expect {
           execute
-        }.to avoid_changing { job.reload.dropped_at }
+        }.to avoid_changing { job.dropped_at }
         .and avoid_changing { job.dropped_by_job_id }
       end
     end
@@ -44,7 +44,7 @@ RSpec.describe SidekiqRobustJob::EnqueueConflictResolutionStrategy::DropSelf do
       it "drops self" do
         expect {
           execute
-        }.to change { job.reload.dropped_at }.to(now)
+        }.to change { job.dropped_at }.to(now)
         .and change { job.dropped_by_job_id }.to(job.id)
       end
     end
