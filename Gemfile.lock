@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sidekiq-robust-job (0.1.0)
+    sidekiq-robust-job (0.2.0)
       activesupport (>= 5)
       sidekiq (>= 5)
       sidekiq-cron (~> 1)
@@ -47,7 +47,7 @@ GEM
     factory_bot_rails (6.1.0)
       factory_bot (~> 6.1.0)
       railties (>= 5.0.0)
-    fugit (1.4.0)
+    fugit (1.4.1)
       et-orbi (~> 1.1, >= 1.1.8)
       raabro (~> 1.4)
     i18n (1.8.5)
