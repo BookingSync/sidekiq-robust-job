@@ -117,7 +117,7 @@ RSpec.describe SidekiqRobustJob::Repository do
       }
     end
 
-    it "build SidekiqJob, but does not persist it" do
+    it "builds SidekiqJob, but does not persist it" do
       job = nil
       expect {
         job = build_job
