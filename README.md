@@ -145,7 +145,7 @@ Although keep in mind that using this feature comes with some performance penalt
 
 If you have a lot of conflicts within a short period, consider using `perform_in` instead of `perform_async` and add some random number of seconds (ideally, below 1 minute) to make it easier to apply enqueue conflict resolution strategy.
 
-If you enqueue a lot of the same jobs (same class, same arguments) in a short period of time and `drop_self` strategy, you should consider setting `persist_self_dropped_jobs` config option to false. By default, it's true which means that even the jobs that are dropped are persisted, which might be useful for some profiling or even figuring out in the first place that you have an issue like this. However, under such circumstances this is likely to result in heavier queries fetching a lot of rows from the database, causing a high database load.    
+If you enqueue a lot of the same jobs (same class, same arguments) in a short period of time and `drop_self` strategy, you should consider setting `persist_self_dropped_jobs` config option to false. By default, it's true which means that even the jobs that are dropped are persisted, which might be useful for some profiling or even figuring out in the first place that you have an issue like this. However, under such circumstances this is likely to result in heavier queries fetching a lot of rows from the database, causing a high database load.
 
 Here is an example how to use it:
 
@@ -155,13 +155,18 @@ class MyJob
   include Sidekiq::Worker
   include SidekiqRobustJob::SidekiqJobExtensions
 
-  sidekiq_options queue: "critical", enqueue_conflict_resolution_strategy: "drop_self", 
-    persist_self_dropped_jobs: false
+  sidekiq_options queue: "critical", enqueue_conflict_resolution_strategy: "drop_self", persist_self_dropped_jobs: false
 
   def call(user_id)
     User.find(user_id).do_something
   end
 end
+```
+
+To make it more likely for self-dropping to kick-in, especially if there is some sort of burst of multiple same jobs being applied at almost the time, consider adding some delay for the execution of the job:
+
+```
+MyJob.perform_in((5..30).to_a.sample.seconds, user_id)
 ```
 
 #### Execution Uniqueness (Mutex)
