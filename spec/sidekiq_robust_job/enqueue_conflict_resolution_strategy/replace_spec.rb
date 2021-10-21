@@ -27,16 +27,19 @@ RSpec.describe SidekiqRobustJob::EnqueueConflictResolutionStrategy::Replace, :fr
     end
 
     context "when there are some jobs that are unprocessed" do
-      let!(:processed_job) { create(:sidekiq_job, digest: digest, dropped_at: 1.week.ago) }
-      let!(:dropped_job) { create(:sidekiq_job, digest: digest, completed_at: 1.week.ago) }
+      let!(:dropped_job) { create(:sidekiq_job, digest: digest, dropped_at: 1.week.ago) }
+      let!(:completed_job) { create(:sidekiq_job, digest: digest, started_at: 1.week.ago, completed_at: 1.week.ago) }
+      let!(:job_being_processed) { create(:sidekiq_job, digest: digest, started_at: 1.second.ago) }
 
       it "does not drop these jobs" do
         expect {
           execute
-        }.to avoid_changing { processed_job.reload.dropped_at }
-        .and avoid_changing { processed_job.reload.dropped_by_job_id }
-        .and avoid_changing { dropped_job.reload.dropped_at }
+        }.to avoid_changing { dropped_job.reload.dropped_at }
         .and avoid_changing { dropped_job.reload.dropped_by_job_id }
+        .and avoid_changing { completed_job.reload.dropped_at }
+        .and avoid_changing { completed_job.reload.dropped_by_job_id }
+        .and avoid_changing { job_being_processed.reload.dropped_at }
+        .and avoid_changing { job_being_processed.reload.dropped_by_job_id }
       end
     end
 

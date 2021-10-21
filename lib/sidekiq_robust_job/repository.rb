@@ -34,6 +34,14 @@ class SidekiqRobustJob
         .select { |potentially_missed_job| missed_job_policy.call(potentially_missed_job) }
     end
 
+    def not_started_for_digest(digest, exclude_id:)
+      jobs_database
+        .where(digest: digest)
+        .where(started_at: nil)
+        .where(dropped_at: nil)
+        .where.not(id: exclude_id)
+    end
+
     def unprocessed_for_digest(digest, exclude_id:)
       jobs_database
         .where(digest: digest)
@@ -45,6 +53,15 @@ class SidekiqRobustJob
     def drop_unprocessed_jobs_by_digest(dropped_by_job_id:, digest:, exclude_id:)
       transaction do
         unprocessed_for_digest(digest, exclude_id: exclude_id).lock!.find_each do |job|
+          job.drop(dropped_by_job_id: dropped_by_job_id)
+          save(job)
+        end
+      end
+    end
+
+    def drop_not_started_jobs_by_digest(dropped_by_job_id:, digest:, exclude_id:)
+      transaction do
+        not_started_for_digest(digest, exclude_id: exclude_id).lock!.find_each do |job|
           job.drop(dropped_by_job_id: dropped_by_job_id)
           save(job)
         end

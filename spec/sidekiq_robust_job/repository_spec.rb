@@ -173,6 +173,27 @@ RSpec.describe SidekiqRobustJob::Repository do
     end
   end
 
+  describe "#not_started_for_digest" do
+    subject(:not_started_for_digest) do
+      repository.not_started_for_digest(digest, exclude_id: job_6.id)
+    end
+
+    let(:repository) { described_class.new(jobs_database: SidekiqJob, clock: clock) }
+    let!(:clock) { double(now: current_time) }
+    let!(:current_time) { Time.current.round }
+    let(:digest) { "123abc321" }
+    let!(:job_1) { FactoryBot.create(:sidekiq_job, digest: digest, started_at: nil) }
+    let!(:job_2) { FactoryBot.create(:sidekiq_job, digest: digest, started_at: nil, dropped_at: 1.day.ago) }
+    let!(:job_3) { FactoryBot.create(:sidekiq_job, digest: digest, started_at: Time.current) }
+    let!(:job_4) { FactoryBot.create(:sidekiq_job, digest: "other", started_at: Time.current) }
+    let!(:job_5) { FactoryBot.create(:sidekiq_job, digest: "other_2", started_at: nil) }
+    let!(:job_6) { FactoryBot.create(:sidekiq_job, digest: digest, started_at: nil) }
+
+    it "returns jobs that have given digest that are not dropped or completed excluding provided ID" do
+      expect(not_started_for_digest).to match_array [job_1]
+    end
+  end
+
   describe "#drop_unprocessed_jobs_by_digest", :freeze_time do
     subject(:drop_unprocessed_jobs_by_digest) do
       repository.drop_unprocessed_jobs_by_digest(dropped_by_job_id: 1212, digest: digest, exclude_id: job_6.id)
@@ -192,6 +213,40 @@ RSpec.describe SidekiqRobustJob::Repository do
     it "marks all unprocessed jobs ith a given digest as processed excluding the one with provided ID" do
       expect {
         drop_unprocessed_jobs_by_digest
+      }.to change { job_1.reload.dropped_at }.from(nil).to(current_time)
+      .and change { job_1.dropped_by_job_id }.from(nil).to(1212)
+      .and avoid_changing { job_2.reload.dropped_at }
+      .and avoid_changing { job_2.dropped_by_job_id }
+      .and avoid_changing { job_3.reload.dropped_at }
+      .and avoid_changing { job_3.dropped_by_job_id }
+      .and avoid_changing { job_4.reload.dropped_at }
+      .and avoid_changing { job_4.dropped_by_job_id }
+      .and avoid_changing { job_5.reload.dropped_at }
+      .and avoid_changing { job_5.dropped_by_job_id }
+      .and avoid_changing { job_6.reload.dropped_at }
+      .and avoid_changing { job_6.dropped_by_job_id }
+    end
+  end
+
+  describe "#drop_not_started_jobs_by_digest", :freeze_time do
+    subject(:drop_not_started_jobs_by_digest) do
+      repository.drop_not_started_jobs_by_digest(dropped_by_job_id: 1212, digest: digest, exclude_id: job_6.id)
+    end
+
+    let(:repository) { described_class.new(jobs_database: SidekiqJob, clock: clock) }
+    let!(:clock) { double(now: current_time) }
+    let!(:current_time) { Time.current.round }
+    let(:digest) { "123abc321" }
+    let!(:job_1) { FactoryBot.create(:sidekiq_job, digest: digest, started_at: nil) }
+    let!(:job_2) { FactoryBot.create(:sidekiq_job, digest: digest, started_at: nil, dropped_at: 1.day.ago) }
+    let!(:job_3) { FactoryBot.create(:sidekiq_job, digest: digest, started_at: Time.current) }
+    let!(:job_4) { FactoryBot.create(:sidekiq_job, digest: "other", started_at: Time.current) }
+    let!(:job_5) { FactoryBot.create(:sidekiq_job, digest: "other_2", started_at: nil) }
+    let!(:job_6) { FactoryBot.create(:sidekiq_job, digest: digest, started_at: nil) }
+
+    it "marks all unprocessed jobs ith a given digest as processed excluding the one with provided ID" do
+      expect {
+        drop_not_started_jobs_by_digest
       }.to change { job_1.reload.dropped_at }.from(nil).to(current_time)
       .and change { job_1.dropped_by_job_id }.from(nil).to(1212)
       .and avoid_changing { job_2.reload.dropped_at }

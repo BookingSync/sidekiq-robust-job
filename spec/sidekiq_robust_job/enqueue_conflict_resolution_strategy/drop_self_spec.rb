@@ -26,9 +26,10 @@ RSpec.describe SidekiqRobustJob::EnqueueConflictResolutionStrategy::DropSelf do
       end
     end
 
-    context "when no jobs with the same digest exist that would not be dropped or completed" do
-      let!(:processed_job) { create(:sidekiq_job, digest: digest, dropped_at: Time.now) }
-      let!(:dropped_job) { create(:sidekiq_job, digest: digest, completed_at: Time.now) }
+    context "when no jobs with the same digest exist that would not be dropped, completed or in progress" do
+      let!(:dropped_job) { create(:sidekiq_job, digest: digest, dropped_at: Time.now) }
+      let!(:completed_job) { create(:sidekiq_job, digest: digest, started_at: Time.now, completed_at: Time.now) }
+      let!(:job_being_processed) { create(:sidekiq_job, digest: digest, started_at: Time.now) }
 
       it "does not drop self" do
         expect {
