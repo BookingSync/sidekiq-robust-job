@@ -17,6 +17,12 @@ RSpec.describe SidekiqRobustJob::UniquenessStrategy do
     it { is_expected.to eq :until_executed }
   end
 
+  describe ".while_executing" do
+    subject(:while_executing) { described_class.while_executing }
+
+    it { is_expected.to eq :while_executing }
+  end
+
   describe "#resolve" do
     subject(:resolve) { uniqueness_strategy.resolve(strategy) }
 
@@ -40,6 +46,12 @@ RSpec.describe SidekiqRobustJob::UniquenessStrategy do
       let(:strategy) { "until_executed" }
 
       it { is_expected.to be_a SidekiqRobustJob::UniquenessStrategy::UntilExecuted }
+    end
+
+    context "when strategy is 'while_executing'" do
+      let(:strategy) { "while_executing" }
+
+      it { is_expected.to be_a SidekiqRobustJob::UniquenessStrategy::WhileExecuting }
     end
 
     context "when strategy is something else" do
