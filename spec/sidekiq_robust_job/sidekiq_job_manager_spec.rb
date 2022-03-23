@@ -286,11 +286,17 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           end
         end
 
-        it "unfortunatelt persists the job" do
+        it "unfortunately persists the job" do
           expect {
             perform_async
           }.to change { SidekiqJob.count }.from(0).to(2)
           expect(SidekiqJob.pluck(:digest).uniq.size).to eq 1
+        end
+
+        it "pushes job to sidekiq" do
+          expect {
+            perform_async
+          }.to change { job_class.jobs.count }.by(1)
         end
       end
     end
@@ -502,6 +508,44 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           }.to change { SidekiqJob.count }.by(1)
         end
       end
+
+      context "with race conditions happening" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        # simulate parallel creation of identical job between uniq check and committing
+        before do
+          SidekiqJob.delete_all
+
+          allow(manager).to receive(:resolve_potential_conflict_for_enqueueing).and_wrap_original do |method, *args|
+            method.call(*args)
+            create(:sidekiq_job, digest: SidekiqRobustJob::DependenciesContainer["digest_generator"].generate(job_class))
+          end
+        end
+
+        it "unfortunately persists the job" do
+          expect {
+            perform_in
+          }.to change { SidekiqJob.count }.from(0).to(2)
+          expect(SidekiqJob.pluck(:digest).uniq.size).to eq 1
+        end
+
+        it "pushes job to sidekiq" do
+          expect {
+            perform_in
+          }.to change { job_class.jobs.count }.by(1)
+        end
+      end
     end
   end
 
@@ -709,6 +753,44 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           expect {
             perform_at
           }.to change { SidekiqJob.count }.by(1)
+        end
+      end
+
+      context "with race conditions happening" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        # simulate parallel creation of identical job between uniq check and committing
+        before do
+          SidekiqJob.delete_all
+
+          allow(manager).to receive(:resolve_potential_conflict_for_enqueueing).and_wrap_original do |method, *args|
+            method.call(*args)
+            create(:sidekiq_job, digest: SidekiqRobustJob::DependenciesContainer["digest_generator"].generate(job_class))
+          end
+        end
+
+        it "unfortunately persists the job" do
+          expect {
+            perform_at
+          }.to change { SidekiqJob.count }.from(0).to(2)
+          expect(SidekiqJob.pluck(:digest).uniq.size).to eq 1
+        end
+
+        it "pushes job to sidekiq" do
+          expect {
+            perform_at
+          }.to change { job_class.jobs.count }.by(1)
         end
       end
     end
