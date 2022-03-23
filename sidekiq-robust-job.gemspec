@@ -39,4 +39,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "activerecord", "~> 5"
   spec.add_development_dependency "pg"
   spec.add_development_dependency "factory_bot_rails"
+  spec.add_development_dependency "pry"
 end
