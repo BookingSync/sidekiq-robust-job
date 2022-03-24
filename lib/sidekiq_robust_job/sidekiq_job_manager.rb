@@ -1,13 +1,14 @@
 class SidekiqRobustJob
   class SidekiqJobManager
-    attr_reader :jobs_repository, :clock, :digest_generator, :memory_monitor
-    private     :jobs_repository, :clock, :digest_generator, :memory_monitor
+    attr_reader :jobs_repository, :clock, :digest_generator, :memory_monitor, :enqueue_conflict_resultion_failure_handler
+    private     :jobs_repository, :clock, :digest_generator, :memory_monitor, :enqueue_conflict_resultion_failure_handler
 
-    def initialize(jobs_repository:, clock:, digest_generator:, memory_monitor:)
+    def initialize(jobs_repository:, clock:, digest_generator:, memory_monitor:, enqueue_conflict_resultion_failure_handler:)
       @jobs_repository = jobs_repository
       @clock = clock
       @digest_generator = digest_generator
       @memory_monitor = memory_monitor
+      @enqueue_conflict_resultion_failure_handler = enqueue_conflict_resultion_failure_handler
     end
 
     def perform_async(job_class, *arguments)
@@ -69,6 +70,9 @@ class SidekiqRobustJob
           resolve_potential_conflict_for_enqueueing(job)
           jobs_repository.save(job) if persist_after_resolving_conflict_for_enqueueing(job, job_class)
         end
+      rescue ActiveRecord::RecordNotUnique => error
+        enqueue_conflict_resultion_failure_handler.call(error, job_class, arguments)
+        retry
       end
     end
 

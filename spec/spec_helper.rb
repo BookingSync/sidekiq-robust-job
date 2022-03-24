@@ -52,7 +52,6 @@ RSpec.configure do |config|
     database = ActiveRecord::Base.connection
   end
 
-
   database.drop_table(:sidekiq_jobs) if database.table_exists?(:sidekiq_jobs)
   database.create_table(:sidekiq_jobs) do |t|
     t.string "job_class", null: false
@@ -79,6 +78,8 @@ RSpec.configure do |config|
     t.string "sidekiq_jid"
 
     t.index ["completed_at", "failed_at", "dropped_at"], name: "index_sidekiq_jobs_on_completed_at_and_failed_at_and_dropped_at"
+    t.index ["digest"], name: "index_sidekiq_jobs_on_digest_null_completed_and_dropped_uniq", unique: true,
+      where: "(completed_at IS NULL AND dropped_at IS NULL AND enqueue_conflict_resolution_strategy IS DISTINCT FROM 'do_nothing')"
     t.index ["completed_at"], name: "index_sidekiq_jobs_on_completed_at", using: :brin
     t.index ["created_at"], name: "index_sidekiq_jobs_on_created_at", using: :brin
     t.index ["digest"], name: "index_sidekiq_jobs_on_digest"

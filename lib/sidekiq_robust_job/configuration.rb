@@ -44,5 +44,14 @@ class SidekiqRobustJob
     def missed_job_cron
       @missed_job_cron || DEFAULT_MISSED_JOB_CRON_EVERY_THREE_HOURS
     end
+
+    def enqueue_conflict_resultion_failure_handler=(val)
+      raise ArgumentError.new("must be lambda-like object!") if !val.respond_to?(:call)
+      @enqueue_conflict_resultion_failure_handler = val
+    end
+
+    def enqueue_conflict_resultion_failure_handler
+      @enqueue_conflict_resultion_failure_handler || ->(_error, _job_class, _arguments) { nil }
+    end
   end
 end
