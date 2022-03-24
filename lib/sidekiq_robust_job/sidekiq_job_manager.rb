@@ -54,6 +54,8 @@ class SidekiqRobustJob
     private
 
     def create_job(job_class, *arguments)
+      retries ||= 0
+
       jobs_repository.build(
         job_class: job_class,
         arguments: Array.wrap(arguments),
@@ -71,8 +73,9 @@ class SidekiqRobustJob
           jobs_repository.save(job) if persist_after_resolving_conflict_for_enqueueing(job, job_class)
         end
       rescue ActiveRecord::RecordNotUnique => error
-        enqueue_conflict_resultion_failure_handler.call(error, job_class, arguments)
-        retry
+        handler_result = enqueue_conflict_resultion_failure_handler.call(error, job_class, arguments)
+        retry if (retries += 1) < 5
+        handler_result
       end
     end
 
