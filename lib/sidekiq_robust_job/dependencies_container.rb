@@ -9,7 +9,8 @@ class SidekiqRobustJob
         jobs_repository: SidekiqRobustJob::DependenciesContainer["jobs_repository"],
         clock: SidekiqRobustJob.configuration.clock,
         digest_generator: SidekiqRobustJob::DependenciesContainer["digest_generator"],
-        memory_monitor: SidekiqRobustJob.configuration.memory_monitor
+        memory_monitor: SidekiqRobustJob.configuration.memory_monitor,
+        enqueue_conflict_resultion_failure_handler: SidekiqRobustJob.configuration.enqueue_conflict_resultion_failure_handler
       )
     end
 

@@ -4,11 +4,15 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
       jobs_repository: SidekiqRobustJob::DependenciesContainer["jobs_repository"],
       clock: clock,
       digest_generator: SidekiqRobustJob::DependenciesContainer["digest_generator"],
-      memory_monitor: memory_monitor
+      memory_monitor: memory_monitor,
+      enqueue_conflict_resultion_failure_handler: enqueue_conflict_resultion_failure_handler
     )
   end
   let(:clock) { double(now: current_time) }
   let(:current_time) { Time.current }
+  let(:enqueue_conflict_resultion_failure_handler) do
+    ->(_error, _job_class, _arguments) { nil }
+  end
   let(:job_class) do
     Class.new do
       include Sidekiq::Worker
@@ -261,6 +265,44 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           }.to change { SidekiqJob.count }.by(1)
         end
       end
+
+      context "with race conditions happening" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: false
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        # simulate parallel creation of identical job between uniq check and committing
+        before do
+          SidekiqJob.delete_all
+
+          allow(manager).to receive(:resolve_potential_conflict_for_enqueueing).and_wrap_original do |method, *args|
+            method.call(*args)
+            create(:sidekiq_job, digest: SidekiqRobustJob::DependenciesContainer["digest_generator"].generate(job_class))
+          end
+        end
+
+        it "unfortunately persists the job" do
+          expect {
+            perform_async
+          }.to change { SidekiqJob.count }.from(0).to(2)
+          expect(SidekiqJob.pluck(:digest).uniq.size).to eq 1
+        end
+
+        it "pushes job to sidekiq" do
+          expect {
+            perform_async
+          }.to change { job_class.jobs.count }.by(1)
+        end
+      end
     end
   end
 
@@ -470,6 +512,44 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           }.to change { SidekiqJob.count }.by(1)
         end
       end
+
+      context "with race conditions happening" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+
+        # simulate parallel creation of identical job between uniq check and committing
+        before do
+          SidekiqJob.delete_all
+
+          allow(manager).to receive(:resolve_potential_conflict_for_enqueueing).and_wrap_original do |method, *args|
+            method.call(*args)
+            create(:sidekiq_job, digest: SidekiqRobustJob::DependenciesContainer["digest_generator"].generate(job_class))
+          end
+        end
+
+        it "unfortunately persists the job" do
+          expect {
+            perform_in
+          }.to change { SidekiqJob.count }.from(0).to(2)
+          expect(SidekiqJob.pluck(:digest).uniq.size).to eq 1
+        end
+
+        it "pushes job to sidekiq" do
+          expect {
+            perform_in
+          }.to change { job_class.jobs.count }.by(1)
+        end
+      end
     end
   end
 
@@ -677,6 +757,57 @@ RSpec.describe SidekiqRobustJob::SidekiqJobManager, :freeze_time do
           expect {
             perform_at
           }.to change { SidekiqJob.count }.by(1)
+        end
+      end
+
+      context "with race conditions happening" do
+        let(:job_class) do
+          Class.new do
+            include Sidekiq::Worker
+            include SidekiqRobustJob::SidekiqJobExtensions
+
+            sidekiq_options enqueue_conflict_resolution_strategy: :drop_self, persist_self_dropped_jobs: false
+
+            def self.to_s
+              "TestJob"
+            end
+          end
+        end
+        # our response mock creates colliding job in trascation and  gets lost on rollback so I'm recreating that after failed transaction
+        let(:enqueue_conflict_resultion_failure_handler) do
+          lambda do |_error, _job_class, _arguments|
+            create(:sidekiq_job, digest: SidekiqRobustJob::DependenciesContainer["digest_generator"].generate(job_class),
+              enqueue_conflict_resolution_strategy: "drop_self", arguments: ["parallel"])
+          end
+        end
+
+        # simulate parallel creation of identical job between uniq check and committing
+        before do
+          SidekiqJob.delete_all
+          counter = 0
+
+          allow(manager).to receive(:resolve_potential_conflict_for_enqueueing).and_wrap_original do |method, *args|
+            method.call(*args).tap do |result|
+              if counter.zero?
+                create(:sidekiq_job, digest: SidekiqRobustJob::DependenciesContainer["digest_generator"].generate(job_class),
+                  enqueue_conflict_resolution_strategy: "drop_self", arguments: ["parallel"])
+              end
+              counter += 1
+            end
+          end
+        end
+
+        it "doesn't persist the job" do
+          expect {
+            perform_at
+          }.to change { SidekiqJob.count }.from(0).to(1)
+          expect(SidekiqJob.pluck(:arguments)).to eq([["parallel"]])
+        end
+
+        it "doesn't push job to sidekiq" do
+          expect {
+            perform_at
+          }.not_to change { job_class.jobs.count }
         end
       end
     end
