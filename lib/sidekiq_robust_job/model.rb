@@ -9,6 +9,7 @@ class SidekiqRobustJob
           SidekiqRobustJob::UniquenessStrategy.no_uniqueness,
           SidekiqRobustJob::UniquenessStrategy.until_executing,
           SidekiqRobustJob::UniquenessStrategy.until_executed,
+          SidekiqRobustJob::UniquenessStrategy.while_executing,
         ].map(&:to_s)
       }, on: :create
 
