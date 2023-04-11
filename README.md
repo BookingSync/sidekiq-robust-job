@@ -224,7 +224,11 @@ Recommended especially when you don't use Sidekiq Pro's `super_fetch`. If you de
 If you want to take advantage of this feature, just add the job to schedule (based on [sidekiq-cron](https://github.com/ondrejbartas/sidekiq-cron)):
 
 ``` rb
-SidekiqRobustJob.schedule_missed_jobs_handling
+Sidekiq.configure_server do |config|
+  config.on(:startup) do
+    SidekiqRobustJob.schedule_missed_jobs_handling
+  end
+end
 ```
 
 By default, the job will be executed every 3 hours. It is going to look for the jobs created more than 3 hours ago that are still not completed or not dropped and reschedule them. You can customize both how often the job is executed and when the job should be considered to be missed:
