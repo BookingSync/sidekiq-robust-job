@@ -21,7 +21,7 @@ require "sidekiq_robust_job/uniqueness_strategy/no_uniqueness"
 require "sidekiq_robust_job/uniqueness_strategy/until_executed"
 require "sidekiq_robust_job/uniqueness_strategy/until_executing"
 require "sidekiq_robust_job/uniqueness_strategy/while_executing"
-require "sidekiq/cron/job"
+require "sidekiq-cron"
 require "sidekiq"
 require "active_support/concern"
 

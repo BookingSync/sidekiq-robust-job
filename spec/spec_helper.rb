@@ -42,15 +42,21 @@ RSpec.configure do |config|
   end
 
   database_name = "sidekiq-robust-job-test"
-  ActiveRecord::Base.establish_connection(adapter: "postgresql", database: database_name)
+  connection_config = { adapter: "postgresql" }
+  connection_config[:host] = ENV["PGHOST"] if ENV["PGHOST"]
+  connection_config[:username] = ENV["PGUSER"] if ENV["PGUSER"]
+  connection_config[:password] = ENV["PGPASSWORD"] if ENV["PGPASSWORD"]
+
+  ActiveRecord::Base.establish_connection(connection_config.merge(database: database_name))
   begin
     database = ActiveRecord::Base.connection
+    database.execute("SELECT 1")
   rescue ActiveRecord::NoDatabaseError
-    ActiveRecord::Base.establish_connection(adapter: "postgresql").connection.create_database(database_name)
-    ActiveRecord::Base.establish_connection(adapter: "postgresql", database: database_name)
+    ActiveRecord::Base.establish_connection(connection_config.merge(database: "postgres"))
+    ActiveRecord::Base.connection.create_database(database_name)
+    ActiveRecord::Base.establish_connection(connection_config.merge(database: database_name))
     database = ActiveRecord::Base.connection
   end
-
 
   database.drop_table(:sidekiq_jobs) if database.table_exists?(:sidekiq_jobs)
   database.create_table(:sidekiq_jobs) do |t|
