@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ruby: "3.3"
+            gemfile: gemfiles/sidekiq_cron_1.gemfile
+            rails_version: "~> 7.1.0"
+          - ruby: "3.4"
+            gemfile: gemfiles/sidekiq_cron_2.gemfile
+            rails_version: "~> 8.0.0"
+          - ruby: "4.0"
+            gemfile: gemfiles/sidekiq_cron_2.gemfile
+            rails_version: "~> 8.1.0"
+
+    env:
+      BUNDLE_GEMFILE: ${{ matrix.gemfile }}
+      RAILS_VERSION: ${{ matrix.rails_version }}
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - run: bundle exec rspec
