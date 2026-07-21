@@ -7,16 +7,17 @@ class SidekiqRobustJob
 
     def_delegator :all, :each
 
-    attr_reader :jobs_repository, :missed_job_policy
-    private     :jobs_repository, :missed_job_policy
+    attr_reader :jobs_repository, :missed_job_policy, :repository_method
+    private     :jobs_repository, :missed_job_policy, :repository_method
 
-    def initialize(jobs_repository:, missed_job_policy:)
+    def initialize(jobs_repository:, missed_job_policy:, repository_method: :missed_jobs)
       @jobs_repository = jobs_repository
       @missed_job_policy = missed_job_policy
+      @repository_method = repository_method
     end
 
     def all
-      @all ||= jobs_repository.missed_jobs(missed_job_policy: missed_job_policy)
+      @all ||= jobs_repository.public_send(repository_method, missed_job_policy: missed_job_policy)
     end
 
     def invoke

@@ -56,6 +56,7 @@ class CreateSidekiqJobs < ActiveRecord::Migration[6.0]
       t.string "enqueue_conflict_resolution_strategy"
       t.datetime "execute_at"
       t.string "sidekiq_jid"
+      t.datetime "next_retry_at" # optional, only needed for the "Missed Jobs Including Retries" feature described below
 
       t.index ["completed_at", "failed_at", "dropped_at"], name: "index_sidekiq_jobs_on_completed_at_and_failed_at_and_dropped_at"
       t.index ["completed_at"], name: "index_sidekiq_jobs_on_completed_at", using: :brin
@@ -237,6 +238,52 @@ By default, the job will be executed every 3 hours. It is going to look for the 
 config.missed_job_cron = "0 */3 * * *"
 config.missed_job_policy = ->(job) { Time.current > (job.created_at + 3.hours) }
 ```
+
+##### Missed Jobs Including Retries (opt-in)
+
+By default, a job that has already failed at least once (`failed_at` is present) is never considered "missed" - it's assumed Sidekiq's own retry mechanism owns it. That's usually correct, but if the job's entry in Sidekiq's Redis retry set is itself lost (Redis eviction, a flush, a crash mid-retry), the job is stuck forever with no safety net, since it never even reaches `missed_job_policy`.
+
+If you want the missed jobs handler to also catch jobs stuck mid-retry, this needs an explicit opt-in - it changes what "missed" means, and could interact with a currently-in-flight Sidekiq retry, so it shouldn't happen as a side effect of an upgrade.
+
+1. Add the `next_retry_at` column shown above, plus a supporting index. Keep this as two separate migrations - adding a column and adding a concurrent index are best kept apart, so a slow/failed index build never has to be re-run together with (or block on) the column change:
+
+    ``` rb
+    class AddNextRetryAtToSidekiqJobs < ActiveRecord::Migration[7.0]
+      def change
+        add_column :sidekiq_jobs, :next_retry_at, :datetime
+      end
+    end
+    ```
+
+    ``` rb
+    class AddMissedCandidatesIndexToSidekiqJobs < ActiveRecord::Migration[7.0]
+      disable_ddl_transaction!
+
+      def change
+        add_index :sidekiq_jobs,
+          "GREATEST(execute_at, created_at, next_retry_at)",
+          name: "index_sidekiq_jobs_on_missed_candidates",
+          where: "completed_at IS NULL AND dropped_at IS NULL",
+          algorithm: :concurrently,
+          if_not_exists: true
+      end
+    end
+    ```
+
+    Once the column exists, `next_retry_at` is populated automatically whenever a job fails (using the real exception and the real attempt count, so custom `sidekiq_retry_in` blocks are respected) - this alone doesn't change any behavior, it's just bookkeeping.
+
+2. Point the missed jobs handler at the retry-aware repository method and policy:
+
+    ``` rb
+    config.missed_jobs_repository_method = :missed_jobs_including_retries
+    config.missed_job_policy = SidekiqRobustJob::MissedJobPolicy.new
+    ```
+
+    `SidekiqRobustJob::MissedJobPolicy` accepts a `grace_period:` (default `15.minutes`) added on top of the job's due time (whichever of `execute_at`, `created_at`, `next_retry_at` is most recent) before it's considered missed - this absorbs ordinary Sidekiq queue latency/backpressure so a merely-busy queue doesn't get force-rescheduled.
+
+Both steps are required together - switching only one of `missed_jobs_repository_method` / `missed_job_policy` leaves the other pipeline in a state it wasn't designed for (in particular, the default `missed_job_policy` ignores `next_retry_at` entirely, so pairing it with `missed_jobs_including_retries` would flag retrying jobs based on `created_at` alone, ignoring backoff).
+
+Keep in mind `next_retry_at` is an *estimate*: it replicates Sidekiq's own default delay formula (and calls your `sidekiq_retry_in` block if you have one), but Sidekiq draws its actual jitter independently and non-deterministically at retry time, so the exact moment can't be predicted - only bounded from above. Under normal conditions this is enough of a margin to avoid false positives, but if it ever does misfire on a job that's still legitimately retrying, `no_uniqueness` jobs have no protection against running twice. If that outcome would matter for a given job, pair this feature with the `until_executed` or `until_executing` uniqueness strategy.
 
 #### Getting More Insight About Jobs
 

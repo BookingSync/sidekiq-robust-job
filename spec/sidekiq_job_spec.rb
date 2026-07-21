@@ -102,7 +102,8 @@ RSpec.describe SidekiqJob, :freeze_time, type: :model do
 
     let(:job) do
       described_class.new(memory_usage_before_processing_in_megabytes: 50.0, dropped_at: Time.now,
-        dropped_by_job_id: 5, error_type: "StandardError", error_message: "error", failed_at: Time.now)
+        dropped_by_job_id: 5, error_type: "StandardError", error_message: "error", failed_at: Time.now,
+        next_retry_at: Time.now)
     end
     let(:clock) { double(now: current_time) }
     let(:current_time) { Time.current }
@@ -118,19 +119,34 @@ RSpec.describe SidekiqJob, :freeze_time, type: :model do
     it { is_expected_block.to change { job.error_type }.to(nil) }
     it { is_expected_block.to change { job.error_message }.to(nil) }
     it { is_expected_block.to change { job.failed_at }.to(nil) }
+    it { is_expected_block.to change { job.next_retry_at }.to(nil) }
   end
 
   describe "#failed" do
     subject(:failed) { job.failed(error, clock: clock) }
 
-    let(:job) { described_class.new }
+    let(:job) { described_class.new(job_class: job_class, attempts: attempts) }
+    let(:job_class) { "SidekiqJobFailedSpecTestJob" }
+    let(:attempts) { 1 }
     let(:clock) { double(now: current_time) }
     let(:current_time) { Time.current }
     let(:error) { StandardError.new("something went wrong") }
 
+    before do
+      stub_const(job_class, Class.new do
+        include Sidekiq::Worker
+      end)
+    end
+
     it { is_expected_block.to change { job.error_type }.from(nil).to("StandardError") }
     it { is_expected_block.to change { job.error_message }.from(nil).to("something went wrong") }
     it { is_expected_block.to change { job.failed_at }.from(nil).to(current_time) }
+
+    it "sets next_retry_at based on RetryDelayEstimator" do
+      expect {
+        failed
+      }.to change { job.next_retry_at }.from(nil).to(current_time + 24.seconds)
+    end
   end
 
   describe "#reschedule" do

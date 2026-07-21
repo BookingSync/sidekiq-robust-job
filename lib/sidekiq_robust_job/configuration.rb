@@ -3,7 +3,7 @@ class SidekiqRobustJob
     DEFAULT_MISSED_JOB_CRON_EVERY_THREE_HOURS = "0 */3 * * *".freeze
 
     attr_accessor :locker, :lock_ttl_proc, :memory_monitor, :clock, :digest_generator_backend, :sidekiq_job_model,
-                  :missed_job_policy, :missed_job_cron
+                  :missed_job_policy, :missed_job_cron, :missed_jobs_repository_method
 
     def lock_ttl_proc=(val)
       raise ArgumentError.new("must be lambda-like object!") if !val.respond_to?(:call)
@@ -33,6 +33,10 @@ class SidekiqRobustJob
 
     def missed_job_policy
       @missed_job_policy || ->(job) { Time.current > (job.created_at + 3.hours) }
+    end
+
+    def missed_jobs_repository_method
+      @missed_jobs_repository_method || :missed_jobs
     end
 
     def missed_job_cron=(val)

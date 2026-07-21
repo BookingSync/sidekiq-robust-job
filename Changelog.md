@@ -2,6 +2,9 @@
 
 ## master
 
+## 1.1.0
+- Add opt-in support for including jobs currently retrying in the missed jobs handler: `next_retry_at` column/index, `SidekiqRobustJob::MissedJobPolicy`, `Repository#missed_jobs_including_retries`, and `config.missed_jobs_repository_method`. See README's "Missed Jobs Including Retries" section.
+
 ## 1.0.0
 - Require at least ActiveRecord 7.1, support sidekiq-cron 2.x
 

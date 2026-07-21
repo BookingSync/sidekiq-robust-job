@@ -49,7 +49,8 @@ class SidekiqRobustJob
     def self.missed_jobs
       SidekiqRobustJob::MissedJobs.new(
         jobs_repository: SidekiqRobustJob::DependenciesContainer["jobs_repository"],
-        missed_job_policy: SidekiqRobustJob.configuration.missed_job_policy
+        missed_job_policy: SidekiqRobustJob.configuration.missed_job_policy,
+        repository_method: SidekiqRobustJob.configuration.missed_jobs_repository_method
       )
     end
 

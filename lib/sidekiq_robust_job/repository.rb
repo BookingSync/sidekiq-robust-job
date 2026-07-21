@@ -34,6 +34,13 @@ class SidekiqRobustJob
         .select { |potentially_missed_job| missed_job_policy.call(potentially_missed_job) }
     end
 
+    def missed_jobs_including_retries(missed_job_policy:)
+      jobs_database
+        .where(completed_at: nil, dropped_at: nil)
+        .where("GREATEST(execute_at, created_at, next_retry_at) < ?", clock.now)
+        .select { |potentially_missed_job| missed_job_policy.call(potentially_missed_job) }
+    end
+
     def not_started_for_digest(digest, exclude_id:)
       jobs_database
         .where(digest: digest)
