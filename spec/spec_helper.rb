@@ -102,9 +102,6 @@ RSpec.configure do |config|
     include SidekiqRobustJob::Model
   end
 
-  # Mirrors :sidekiq_jobs but deliberately without the optional `next_retry_at` column/index,
-  # so specs can exercise SidekiqRobustJob::Model against a consumer that hasn't opted into the
-  # "Missed Jobs Including Retries" feature, without stubbing has_attribute?.
   database.drop_table(:legacy_sidekiq_jobs) if database.table_exists?(:legacy_sidekiq_jobs)
   database.create_table(:legacy_sidekiq_jobs) do |t|
     t.string "job_class", null: false
