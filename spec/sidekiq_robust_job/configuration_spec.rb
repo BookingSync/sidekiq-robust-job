@@ -177,6 +177,24 @@ RSpec.describe SidekiqRobustJob::Configuration do
     end
   end
 
+  describe "missed_jobs_repository_method" do
+    subject(:missed_jobs_repository_method) { configuration.missed_jobs_repository_method }
+
+    let(:configuration) { described_class.new }
+
+    context "when 'missed_jobs_repository_method' is not set" do
+      it { is_expected.to eq :missed_jobs }
+    end
+
+    context "when 'missed_jobs_repository_method' is set" do
+      before do
+        configuration.missed_jobs_repository_method = :missed_jobs_including_retries
+      end
+
+      it { is_expected.to eq :missed_jobs_including_retries }
+    end
+  end
+
   describe "missed_job_cron" do
     subject(:missed_job_cron) { configuration.missed_job_cron }
 

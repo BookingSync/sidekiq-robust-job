@@ -152,6 +152,71 @@ RSpec.describe SidekiqRobustJob::Repository do
     end
   end
 
+  describe "#missed_jobs_including_retries" do
+    subject(:missed_jobs_including_retries) do
+      repository.missed_jobs_including_retries(missed_job_policy: accept_all)
+    end
+
+    let(:repository) { described_class.new(jobs_database: SidekiqJob, clock: Time) }
+    let(:accept_all) { ->(_job) { true } }
+
+    context "when job is completed" do
+      before do
+        create(:sidekiq_job, completed_at: 1.hour.ago, execute_at: 4.hours.ago, created_at: 6.hours.ago)
+      end
+
+      it { is_expected.to be_empty }
+    end
+
+    context "when job is dropped" do
+      before do
+        create(:sidekiq_job, dropped_at: 1.hour.ago, execute_at: 4.hours.ago, created_at: 6.hours.ago)
+      end
+
+      it { is_expected.to be_empty }
+    end
+
+    context "when job has never failed and execute_at is in the future" do
+      before { create(:sidekiq_job, execute_at: 1.hour.from_now, created_at: 10.minutes.ago) }
+
+      it { is_expected.to be_empty }
+    end
+
+    context "when job has never failed and execute_at is in the past" do
+      let!(:job) { create(:sidekiq_job, execute_at: 1.hour.ago, created_at: 2.hours.ago) }
+
+      it { is_expected.to contain_exactly(job) }
+    end
+
+    context "when job failed and next_retry_at is still in the future" do
+      before do
+        create(:sidekiq_job, failed_at: 1.hour.ago, execute_at: 2.hours.ago, created_at: 3.hours.ago,
+          next_retry_at: 1.hour.from_now)
+      end
+
+      it { is_expected.to be_empty }
+    end
+
+    context "when job failed and next_retry_at is in the past" do
+      let!(:job) do
+        create(:sidekiq_job, failed_at: 2.hours.ago, execute_at: 3.hours.ago, created_at: 4.hours.ago,
+          next_retry_at: 1.hour.ago)
+      end
+
+      it { is_expected.to contain_exactly(job) }
+    end
+
+    context "when the policy rejects a candidate" do
+      subject(:missed_jobs_including_retries) do
+        repository.missed_jobs_including_retries(missed_job_policy: ->(_job) { false })
+      end
+
+      before { create(:sidekiq_job, execute_at: 1.hour.ago, created_at: 2.hours.ago) }
+
+      it { is_expected.to be_empty }
+    end
+  end
+
   describe "#unprocessed_for_digest" do
     subject(:unprocessed_for_digest) do
       repository.unprocessed_for_digest(digest, exclude_id: job_6.id)

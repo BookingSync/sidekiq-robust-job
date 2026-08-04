@@ -28,6 +28,7 @@ RSpec.configure do |config|
 
   config.after(:example) do
     SidekiqJob.delete_all
+    LegacySidekiqJob.delete_all
   end
 
   config.include IsExpectedBlock
@@ -82,8 +83,11 @@ RSpec.configure do |config|
     t.string "enqueue_conflict_resolution_strategy"
     t.datetime "execute_at"
     t.string "sidekiq_jid"
+    t.datetime "next_retry_at"
 
     t.index ["completed_at", "failed_at", "dropped_at"], name: "index_sidekiq_jobs_on_completed_at_and_failed_at_and_dropped_at"
+    t.index "GREATEST(execute_at, created_at, next_retry_at)", name: "index_sidekiq_jobs_on_missed_candidates",
+      where: "(completed_at IS NULL AND dropped_at IS NULL)"
     t.index ["completed_at"], name: "index_sidekiq_jobs_on_completed_at", using: :brin
     t.index ["created_at"], name: "index_sidekiq_jobs_on_created_at", using: :brin
     t.index ["digest"], name: "index_sidekiq_jobs_on_digest"
@@ -95,6 +99,36 @@ RSpec.configure do |config|
   end
 
   class SidekiqJob < ActiveRecord::Base
+    include SidekiqRobustJob::Model
+  end
+
+  database.drop_table(:legacy_sidekiq_jobs) if database.table_exists?(:legacy_sidekiq_jobs)
+  database.create_table(:legacy_sidekiq_jobs) do |t|
+    t.string "job_class", null: false
+    t.datetime "enqueued_at", null: false
+    t.jsonb "arguments", default: [], null: false
+    t.text "digest", null: false
+    t.string "uniqueness_strategy", null: false
+    t.datetime "completed_at"
+    t.datetime "dropped_at"
+    t.datetime "failed_at"
+    t.datetime "started_at"
+    t.decimal "memory_usage_before_processing_in_megabytes"
+    t.decimal "memory_usage_after_processing_in_megabytes"
+    t.decimal "memory_usage_change_in_megabytes"
+    t.integer "attempts", default: 0, null: false
+    t.string "error_type"
+    t.text "error_message"
+    t.string "queue"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.bigint "dropped_by_job_id"
+    t.string "enqueue_conflict_resolution_strategy"
+    t.datetime "execute_at"
+    t.string "sidekiq_jid"
+  end
+
+  class LegacySidekiqJob < ActiveRecord::Base
     include SidekiqRobustJob::Model
   end
 end

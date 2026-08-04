@@ -2,13 +2,36 @@ RSpec.describe SidekiqRobustJob::MissedJobs do
   describe "#all" do
     subject(:all) { missed_jobs.all }
 
-    let(:missed_jobs) { described_class.new(jobs_repository: repository, missed_job_policy: missed_job_policy) }
-    let(:repository) { double(:repository, missed_jobs: [missed_job]) }
+    let(:missed_jobs) do
+      described_class.new(jobs_repository: repository, missed_job_policy: missed_job_policy,
+        repository_method: repository_method)
+    end
+    let(:repository_method) { :missed_jobs }
+    let(:repository) do
+      double(:repository, missed_jobs: [missed_job], missed_jobs_including_retries: [other_missed_job])
+    end
     let(:missed_job_policy) { double(:missed_job_policy) }
     let(:missed_job) { double(:missed_job) }
+    let(:other_missed_job) { double(:other_missed_job) }
 
     it "returns missed jobs from the repo" do
       expect(all).to eq [missed_job]
+    end
+
+    context "when repository_method is not provided" do
+      let(:missed_jobs) { described_class.new(jobs_repository: repository, missed_job_policy: missed_job_policy) }
+
+      it "defaults to calling :missed_jobs on the repository" do
+        expect(all).to eq [missed_job]
+      end
+    end
+
+    context "when a different repository_method is configured" do
+      let(:repository_method) { :missed_jobs_including_retries }
+
+      it "calls the configured method on the repository instead" do
+        expect(all).to eq [other_missed_job]
+      end
     end
   end
 

@@ -53,12 +53,18 @@ class SidekiqRobustJob
       self.error_type = nil
       self.error_message = nil
       self.failed_at = nil
+      self.next_retry_at = nil if has_attribute?(:next_retry_at)
     end
 
     def failed(error, clock: SidekiqRobustJob.configuration.clock)
       self.error_type = error.class
       self.error_message = error.message
       self.failed_at = clock.now
+
+      if has_attribute?(:next_retry_at)
+        delay = SidekiqRobustJob::RetryDelayEstimator.new.call(job_class: job_class, attempts: attempts, error: error)
+        self.next_retry_at = failed_at + delay.seconds
+      end
     end
 
     def reschedule(job_class_resolver: Object)
